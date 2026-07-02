@@ -284,11 +284,13 @@ public:
         fps_limiter->set_fps_limit(layer->ipc->fps_limit);
 
         layer->ipc->start(swapchain_image_count);
+        bool drew;
         {
             std::lock_guard lock(layer->overlay_vk->m);
-            if (!layer->overlay_vk->draw(pPresentInfo->pSwapchains[0], imageIndex, queue, pi))
-                return pDispatch->QueuePresentKHR(queue, pPresentInfo);
+            drew = layer->overlay_vk->draw(pPresentInfo->pSwapchains[0], imageIndex, queue, pi);
         }
+        if (!drew)
+            return pDispatch->QueuePresentKHR(queue, pPresentInfo);
 
         if (!present_limiter)
             present_limiter = std::make_unique<presentLimiter>(pDispatch->WaitForPresentKHR);
@@ -390,11 +392,7 @@ public:
         if (q_limiter->is_present_queue(queue))
             q_limiter->throttle_before_submit(d);
 
-        VkResult r;
-        {
-            std::lock_guard lock(layer->overlay_vk->m);
-            r = d->QueueSubmit(queue, submitCount, pSubmits, fence);
-        }
+        VkResult r = d->QueueSubmit(queue, submitCount, pSubmits, fence);
 
         if (r != VK_SUCCESS) {
             SPDLOG_ERROR("QueueSubmit {}", string_VkResult(r));
@@ -402,7 +400,6 @@ public:
         }
 
         if (q_limiter->is_present_queue(queue)) {
-            std::lock_guard lock(layer->overlay_vk->m);
             VkResult r2 = q_limiter->mark_after_submit(d, queue);
             if (r2 != VK_SUCCESS) {
                 SPDLOG_ERROR("QueueSubmit limiter mark_after_submit {}", string_VkResult(r2));
