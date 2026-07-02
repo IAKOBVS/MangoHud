@@ -334,6 +334,8 @@ static bool parse_table_node(hudTable& table, YAML::Node table_node, int font_si
     table.cols = cols;
     if (table_node["col_gap"])
         table.col_gap = std::max(0.0f, table_node["col_gap"].as<float>());
+    if (table_node["row_gap"])
+        table.row_gap = table_node["row_gap"].as<float>();
     if (table_node["debug_cell_boxes"])
         table.debug_cell_boxes = table_node["debug_cell_boxes"].as<bool>();
     return true;

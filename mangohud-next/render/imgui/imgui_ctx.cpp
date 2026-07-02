@@ -13,7 +13,6 @@ std::mutex init_m;
 static constexpr float unit_gap = -1.5f;
 static constexpr float hud_cell_padding_x = 0.0f;
 static constexpr float hud_cell_padding_y = 2.0f;
-static constexpr float hud_row_gap = 6.0f;
 static constexpr float outline_padding_x = 1.5f;
 
 ImGuiCtx::ImGuiCtx() {
@@ -347,7 +346,7 @@ static float graph_height(const hudTable& table, const TextCell& tc, Font* fonts
     const float header_h = outlined_text_size_current_font("frametime").y;
     ImGui::PopFont();
 
-    return hud_row_gap + header_h + 50.0f;
+    return header_h + 50.0f;
 }
 
 static float progress_height(const hudTable& table, const ProgressCell& pc, Font* fonts) {
@@ -824,7 +823,7 @@ static HudLayout build_table_layout(hudTable* table, Font* fonts) {
     for (std::size_t r = 0; r < table->rows.size(); r++) {
         L.row_boxes[r].pos.y = y;
         L.row_boxes[r].size.y = row_height(*table, table->rows[r], fonts);
-        y += L.row_boxes[r].size.y + hud_row_gap;
+        y += L.row_boxes[r].size.y + table->row_gap;
     }
 
     for (const HudBox& col : L.col_boxes)
@@ -919,7 +918,7 @@ void ImGuiCtx::draw_table(hudTable& table, Font* fonts, const HudLayout& layout,
                 const float header_h = outlined_text_size_current_font("frametime").y;
                 ImGui::PopFont();
 
-                ImGui::SetCursorPos(ImVec2(origin.x + hud_cell_padding_x, row_y + header_h + hud_row_gap));
+                ImGui::SetCursorPos(ImVec2(origin.x + hud_cell_padding_x, row_y + header_h));
                 const float full_width = std::max(0.0f, layout.content_size.x - hud_cell_padding_x * 2.0f);
                 draw_graph_plot(*tc, colspan > 1 ? cell_w : full_width);
                 continue;
