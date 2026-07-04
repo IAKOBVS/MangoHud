@@ -2,6 +2,7 @@
 #include "memory.hpp"
 #include <variant>
 #include <string_view>
+#include <cctype>
 #include <sys/stat.h>
 #include "../common/table_structs.h"
 #include "../common/helpers.hpp"
@@ -35,6 +36,18 @@ static void truncate_text(std::string& text, int max_chars) {
     }
 }
 
+static bool parse_gpu_index(const char* key, size_t& index) {
+    if (!key || std::strncmp(key, "GPU", 3) != 0)
+        return false;
+
+    const char* p = key + 3;
+    if (!std::isdigit(static_cast<unsigned char>(*p)) || p[1] != '\0')
+        return false;
+
+    index = static_cast<size_t>(*p - '0');
+    return true;
+}
+
 Metrics::Metrics(IPCServer& ipc, std::shared_ptr<Config> cfg_) : cfg(cfg_), ipc(ipc) {
     client_thread     = std::thread(&Metrics::update_client, this);
     pthread_setname_np(client_thread.native_handle(), "update_client");
@@ -45,7 +58,12 @@ Metrics::Metrics(IPCServer& ipc, std::shared_ptr<Config> cfg_) : cfg(cfg_), ipc(
 void Metrics::update() {
     while (!stop.load()) {
         MetricTable new_metrics;
+        const auto now = std::chrono::steady_clock::now();
         for (const auto& [i, gpu] : enumerate(gpus.available())) {
+            gpu->stop_polling_if_idle(now, std::chrono::seconds(3));
+            if (!gpu->polling_active())
+                continue;
+
             auto gpu_metrics = gpu->get_system_metrics();
             std::string gpu_index = "GPU" + std::to_string(i);
             new_metrics[gpu_index]["LOAD"] = {gpu_metrics.load, "%"};
@@ -138,6 +156,13 @@ Metric Metrics::get(const char* a, const char* b, const pid_t pid = 0)
 
             return null_out;
         }
+    }
+
+    size_t gpu_index = 0;
+    if (parse_gpu_index(a, gpu_index)) {
+        auto available_gpus = gpus.available();
+        if (gpu_index < available_gpus.size())
+            available_gpus[gpu_index]->request_polling();
     }
 
     std::lock_guard<std::mutex> lock(m);
