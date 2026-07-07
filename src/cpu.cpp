@@ -296,8 +296,11 @@ bool CPUStats::ReadcpuTempFile(int& temp) {
         read_sz -= 3;
         buf[read_sz] = '\0';
         char *buf_e;
-        temp = strtol(buf, &buf_e, 10);
-        ret = buf_e - buf;
+        const long n = strtol(buf, &buf_e, 10);
+        if (n != LONG_MIN && n != LONG_MAX) {
+            temp = n;
+            ret = buf_e - buf;
+        }
     }
 	return ret;
 }
